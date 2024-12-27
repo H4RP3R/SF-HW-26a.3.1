@@ -7,5 +7,5 @@
 | -size (int)       | buffer size (default 24)            |
 
 ```console
-go run . -delay 20s -size 128
+go run . -delay 20s -size 128 -log console
 ```

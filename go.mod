@@ -1,4 +1,4 @@
-module SF-HW-20.2.1
+module pipeline
 
 go 1.23.1
 
