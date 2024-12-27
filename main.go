@@ -13,21 +13,29 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"pipeline/logger"
 )
 
 var ErrInvalidInput = errors.New("invalid input: please enter a number")
 
-type Stage func(done chan struct{}, inChan <-chan int) <-chan int
+var logsTarget string
+
+type LoggerStatus string
+
+type Stage func(done chan struct{}, inChan <-chan int, log *log.Logger) <-chan int
 
 // pipeline represents a series of stages that process a stream of
 // integers.
 type pipeline struct {
 	stages []Stage
+	log    *log.Logger
 }
 
 // AddStage appends a new stage to the pipeline's list of stages.
 func (p *pipeline) AddStage(stage Stage) {
 	p.stages = append(p.stages, stage)
+	p.log.Printf("New stage added (stages=%d)", len(p.stages))
 }
 
 // Run starts the pipeline, processing data from the dataSource channel and
@@ -35,15 +43,20 @@ func (p *pipeline) AddStage(stage Stage) {
 func (p *pipeline) Run(done chan struct{}, dataSource <-chan int) <-chan int {
 	c := dataSource
 	for _, stage := range p.stages {
-		c = stage(done, c)
+		c = stage(done, c, p.log)
 	}
 
+	p.log.Println("Start the pipeline")
 	return c
 }
 
 // NewPipeLine creates and returns a new instance of a pipeline.
-func NewPipeLine() *pipeline {
-	return &pipeline{}
+func NewPipeLine(logger *log.Logger) *pipeline {
+	p := &pipeline{}
+	p.log = logger
+
+	p.log.Println("Created new pipeline")
+	return p
 }
 
 // readInput reads user input from the terminal and emits each number to the
@@ -114,10 +127,16 @@ func display(done chan struct{}, products <-chan int) {
 func main() {
 	flag.DurationVar(&bufferDelay, "delay", 15*time.Second, "buffer delay")
 	flag.IntVar(&bufferSize, "size", 24, "buffer size")
+	flag.StringVar(&logsTarget, "log", "none", "destination for log output")
 	flag.Parse()
 
 	done := make(chan struct{})
-	p := NewPipeLine()
+
+	logger, err := logger.New(logsTarget)
+	if err != nil {
+		log.Fatal("Cant't implement logger: ", err)
+	}
+	p := NewPipeLine(logger)
 	p.AddStage(filterMultiplesOfThree)
 	p.AddStage(filterNegativeNumbers)
 	p.AddStage(buffering)

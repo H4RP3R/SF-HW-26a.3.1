@@ -2,10 +2,14 @@ package main
 
 import (
 	"flag"
+	"io"
+	"log"
 	"os"
 	"reflect"
 	"testing"
 	"time"
+
+	"pipeline/logger"
 )
 
 func TestMain(m *testing.M) {
@@ -51,7 +55,9 @@ func TestFilterNegativeNumbers(t *testing.T) {
 				}
 			}()
 
-			outChan := filterNegativeNumbers(done, inChan)
+			logger := log.Default()
+			logger.SetOutput(io.Discard)
+			outChan := filterNegativeNumbers(done, inChan, logger)
 			got := []int{}
 			for num := range outChan {
 				got = append(got, num)
@@ -99,7 +105,9 @@ func TestFilterMultiplesOfThree(t *testing.T) {
 				}
 			}()
 
-			outChan := filterMultiplesOfThree(done, inChan)
+			logger := log.Default()
+			logger.SetOutput(io.Discard)
+			outChan := filterMultiplesOfThree(done, inChan, logger)
 			got := []int{}
 			for num := range outChan {
 				got = append(got, num)
@@ -139,7 +147,8 @@ func TestPipeline(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			done := make(chan struct{})
-			p := NewPipeLine()
+			logger, _ := logger.New("none")
+			p := NewPipeLine(logger)
 			p.AddStage(filterMultiplesOfThree)
 			p.AddStage(filterNegativeNumbers)
 			p.AddStage(buffering)
